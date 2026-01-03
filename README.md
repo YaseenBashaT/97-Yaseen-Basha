@@ -40,7 +40,7 @@ User Question
 - **UI:** Streamlit
 - **LLM Providers:**  
   - Groq API (LLaMA models)  
-  - Hugging Face Inference API (Mistral
+  - Hugging Face Inference API (Mistral)
   - Gemini API
 - **Framework:** LangChain
 - **NLP:** NLTK
@@ -48,8 +48,13 @@ User Question
 - **Repo Handling:** GitPython
 - **Visualization:** Plotly, NetworkX
 
+**Data Source:** Public GitHub repositories accessed via repository URLs.
 
 ---
+## 📜 Assumptions
+- Only public GitHub repositories are analyzed
+- API keys are provided by the user
+- Internet access is available
 
 ---
 
