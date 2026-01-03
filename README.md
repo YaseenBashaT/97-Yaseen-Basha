@@ -72,17 +72,6 @@ App runs at: http://localhost:8501
 
     Final answer based on highest agreement
 
-🚀 Future Scope
-
-    Multi-LLM consensus implementation
-
-    RAG with ChromaDB
-
-    Agentic workflows
-
-    FastAPI backend
-
-    Docker & cloud deployment
 
 🤖 AI Tool Usage
 
