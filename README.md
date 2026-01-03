@@ -79,7 +79,6 @@ App runs at: http://localhost:8501
 
     ChatGPT (design & architecture)
 
-AI interaction logs are retained as per hackathon guidelines.
 🏁 Conclusion
 
 This project delivers a practical, extensible, and production-oriented AI system for repository understanding, with a clear roadmap toward reliable multi-model consensus-based reasoning.
