@@ -1,12 +1,36 @@
 import os
 import subprocess
+import uuid
+import numpy as np
 from rank_bm25 import BM25Okapi
 from langchain_community.document_loaders import DirectoryLoader, NotebookLoader
-import uuid
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from utility import clean_and_tokenize
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer
+import chromadb
+from chromadb.config import Settings
+
+CHROMA_DB_DIR = "./chroma_db"
+_retrieval_embedder = None
+_chroma_client = None
+
+
+def get_retrieval_embedder():
+    """Lazy-load embedding model for retrieval."""
+    global _retrieval_embedder
+    if _retrieval_embedder is None:
+        _retrieval_embedder = SentenceTransformer("all-MiniLM-L6-v2")
+    return _retrieval_embedder
+
+
+def get_chroma_client():
+    """Lazy-load Chroma client with persistent local storage."""
+    global _chroma_client
+    if _chroma_client is None:
+        _chroma_client = chromadb.Client(Settings(persist_directory=CHROMA_DB_DIR, is_persistent=True))
+    return _chroma_client
 
 def clone_git_repo(url, path):
     try:
@@ -131,23 +155,101 @@ def load_and_index_files(repo_path):
         split_documents.extend(split_docs)
 
     index = None
+    chroma_collection = None
+    collection_name = None
+
     if split_documents:
+        # BM25 (lexical) index
         tokenized_documents = [clean_and_tokenize(doc.page_content) for doc in split_documents]
         index = BM25Okapi(tokenized_documents)
-    return index, split_documents, file_type_counts, [doc.metadata['source'] for doc in split_documents]
 
-def search_documents(query, index, documents, n_results=5):
+        # Dense embeddings stored in persistent ChromaDB (local disk)
+        embedder = get_retrieval_embedder()
+        embeddings = embedder.encode([doc.page_content for doc in split_documents], show_progress_bar=False)
+        embeddings = np.asarray(embeddings, dtype=np.float32)
+
+        client = get_chroma_client()
+        collection_name = f"repo-{uuid.uuid4()}"
+        # Recreate collection fresh to avoid stale data
+        try:
+            client.delete_collection(collection_name)
+        except Exception:
+            pass
+        chroma_collection = client.get_or_create_collection(name=collection_name, metadata={"source": "local"})
+
+        chroma_collection.add(
+            ids=[doc.metadata['file_id'] for doc in split_documents],
+            documents=[doc.page_content for doc in split_documents],
+            embeddings=embeddings.tolist(),
+            metadatas=[{"source": doc.metadata.get("source", ""), "file_id": doc.metadata.get("file_id", "")}] * len(split_documents)
+        )
+
+    return {
+        "bm25": index,
+        "chroma_collection": chroma_collection,
+        "chroma_collection_name": collection_name
+    }, split_documents, file_type_counts, [doc.metadata['source'] for doc in split_documents]
+
+def search_documents(query, index_bundle, documents, n_results=5):
+    """Hybrid search using BM25 + TF-IDF + Chroma (persistent local)."""
+    if not documents:
+        return []
+
+    bm25_index = index_bundle.get("bm25") if isinstance(index_bundle, dict) else index_bundle
+    chroma_collection = None
+    if isinstance(index_bundle, dict):
+        chroma_collection = index_bundle.get("chroma_collection")
+        collection_name = index_bundle.get("chroma_collection_name")
+        if chroma_collection is None and collection_name:
+            client = get_chroma_client()
+            try:
+                chroma_collection = client.get_collection(name=collection_name)
+                index_bundle["chroma_collection"] = chroma_collection
+            except Exception:
+                chroma_collection = None
+
+    # BM25 lexical scores
     query_tokens = clean_and_tokenize(query)
-    bm25_scores = index.get_scores(query_tokens)
+    bm25_scores = bm25_index.get_scores(query_tokens) if bm25_index else np.zeros(len(documents))
 
-    tfidf_vectorizer = TfidfVectorizer(tokenizer=clean_and_tokenize, lowercase=True, stop_words='english', use_idf=True, smooth_idf=True, sublinear_tf=True)
+    # TF-IDF semantic-lite scores
+    tfidf_vectorizer = TfidfVectorizer(
+        tokenizer=clean_and_tokenize,
+        lowercase=True,
+        stop_words='english',
+        use_idf=True,
+        smooth_idf=True,
+        sublinear_tf=True,
+    )
     tfidf_matrix = tfidf_vectorizer.fit_transform([doc.page_content for doc in documents])
     query_tfidf = tfidf_vectorizer.transform([query])
-
     cosine_sim_scores = cosine_similarity(query_tfidf, tfidf_matrix).flatten()
 
-    combined_scores = bm25_scores * 0.5 + cosine_sim_scores * 0.5
+    # Chroma dense scores (convert distances to similarity)
+    chroma_scores = np.zeros(len(documents))
+    if chroma_collection is not None:
+        try:
+            embedder = get_retrieval_embedder()
+            q_embed = embedder.encode([query], show_progress_bar=False)
+            q_embed = np.asarray(q_embed, dtype=np.float32)
+            result = chroma_collection.query(query_embeddings=q_embed.tolist(), n_results=min(n_results, len(documents)))
+            if result and result.get("ids"):
+                ids = result["ids"][0]
+                distances = result.get("distances", [[0] * len(ids)])[0]
+                for idx, doc_id in enumerate(ids):
+                    try:
+                        doc_pos = next(i for i, d in enumerate(documents) if d.metadata.get("file_id") == doc_id)
+                        chroma_scores[doc_pos] = 1 - distances[idx]
+                    except StopIteration:
+                        continue
+        except Exception:
+            pass
+
+    combined_scores = (
+        0.34 * bm25_scores
+        + 0.33 * cosine_sim_scores
+        + 0.33 * chroma_scores
+    )
 
     unique_top_document_indices = list(set(combined_scores.argsort()[::-1]))[:n_results]
-
     return [documents[i] for i in unique_top_document_indices]

@@ -4,6 +4,83 @@ from repo_reader import search_documents
 from typing import List, Dict, Any
 from llm_client import BaseLLMClient
 from langchain_core.prompts import PromptTemplate
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+
+# Initialize embedding model globally (loaded once)
+_embedding_model = None
+
+def get_embedding_model():
+    """Lazy load the sentence transformer model"""
+    global _embedding_model
+    if _embedding_model is None:
+        _embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+    return _embedding_model
+
+def compute_consensus(responses: List[Dict[str, str]]) -> Dict[str, Any]:
+    """
+    Compute consensus response using sentence embeddings and cosine similarity.
+    
+    Args:
+        responses: List of dicts with 'model_name' and 'response' keys
+        
+    Returns:
+        Dict with 'consensus_response' and 'model_scores'
+    """
+    # Filter out error responses
+    valid_responses = [r for r in responses if not r['response'].startswith('Error getting response')]
+    
+    if len(valid_responses) == 0:
+        return {
+            "consensus_response": "No valid responses received from LLM clients",
+            "model_scores": []
+        }
+    
+    if len(valid_responses) == 1:
+        return {
+            "consensus_response": valid_responses[0]['response'],
+            "model_scores": [{"model": valid_responses[0]['model_name'], "avg_similarity": 1.0}]
+        }
+    
+    # Get embedding model
+    model = get_embedding_model()
+    
+    # Compute embeddings for all responses
+    response_texts = [r['response'] for r in valid_responses]
+    embeddings = model.encode(response_texts, convert_to_numpy=True)
+    
+    # Compute pairwise cosine similarity matrix
+    similarity_matrix = cosine_similarity(embeddings)
+    
+    # Calculate average similarity score for each response (excluding self-similarity)
+    avg_similarities = []
+    for i in range(len(valid_responses)):
+        # Get similarities with all other responses (exclude diagonal)
+        other_similarities = [similarity_matrix[i][j] for j in range(len(valid_responses)) if i != j]
+        avg_sim = np.mean(other_similarities) if other_similarities else 0.0
+        avg_similarities.append(avg_sim)
+    
+    # Find the response with highest average similarity
+    best_idx = np.argmax(avg_similarities)
+    
+    # Prepare model scores
+    model_scores = [
+        {
+            "model": valid_responses[i]['model_name'],
+            "avg_similarity": float(avg_similarities[i])
+        }
+        for i in range(len(valid_responses))
+    ]
+    
+    # Sort by similarity score descending
+    model_scores.sort(key=lambda x: x['avg_similarity'], reverse=True)
+    
+    return {
+        "consensus_response": valid_responses[best_idx]['response'],
+        "model_scores": model_scores
+    }
+
 
 class QuestionContext:
     def __init__(self, index, documents, llm_clients: List[BaseLLMClient], repo_name, repo_url, conversation_history, file_type_count, filenames):
@@ -55,6 +132,7 @@ IMPORTANT INSTRUCTIONS:
 - If a file (like README.md) is not in the documents above, do NOT mention it or claim information comes from it
 - Be specific about which document number you're referencing when citing information
 - If you don't have enough information in the provided documents, say so clearly
+- Keep the answer terse and direct. No preamble, no meta-commentary, no restating the question. Start with the answer.
 
 Please analyze the provided documents and conversation history to answer the question comprehensively. Cite specific files and code sections when relevant.'''
 
@@ -90,9 +168,10 @@ Please analyze the provided documents and conversation history to answer the que
             }
             responses.append(response_data)
     
-    # For now, return only the first response text (single LLM mode)
-    # Future: consensus logic will use all responses
+    # Compute consensus from all responses
     if responses:
-        return responses[0]["response"]
+        consensus_result = compute_consensus(responses)
+        # Return only the consensus response to UI
+        return consensus_result["consensus_response"]
     else:
         return "No response received from any LLM client"
