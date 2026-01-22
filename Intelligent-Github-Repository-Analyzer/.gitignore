@@ -1,0 +1,34 @@
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+
+# API Keys and tokens
+*.key
+*.pem
+*.txt
+
+# Cache and database
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.coverage
+chroma_db/
+repo_cache/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python
+venv/
+env/
+*.egg
+dist/
+build/

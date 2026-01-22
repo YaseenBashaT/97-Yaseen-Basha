@@ -1,32 +1,24 @@
 #!/usr/bin/env python3
 """
-Test to verify all 3 LLMs are being called and consensus is working
+Test to verify Groq LLM and consensus is working
 """
 
 import sys
 from questions import compute_consensus
 
 print("\n" + "="*80)
-print(" TESTING CONSENSUS WITH 3 LLM RESPONSES".center(80))
+print(" TESTING CONSENSUS WITH GROQ LLM RESPONSE".center(80))
 print("="*80 + "\n")
 
-# Simulate responses from all 3 LLMs
+# Simulate response from Groq LLM
 test_responses = [
     {
         "model_name": "Groq (llama-3.3-70b-versatile)",
         "response": "This codebase implements a machine learning pipeline that processes data and trains models."
-    },
-    {
-        "model_name": "HuggingFace (Mistral-7B)",
-        "response": "The project contains a machine learning pipeline for data processing and model training."
-    },
-    {
-        "model_name": "Google Gemini (gemini-1.5-flash)",
-        "response": "This is a machine learning pipeline that handles data processing and model development."
     }
 ]
 
-print("INPUT RESPONSES FROM 3 LLMS:")
+print("INPUT RESPONSES FROM GROQ LLM:")
 print("-" * 80)
 for i, resp in enumerate(test_responses, 1):
     print(f"\n[LLM {i}] {resp['model_name']}")

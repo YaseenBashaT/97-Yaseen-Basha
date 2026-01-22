@@ -153,6 +153,9 @@ Please analyze the provided documents and conversation history to answer the que
     
     # Get responses from all LLM clients
     responses = []
+    print("\n" + "="*80)
+    print("LLM RESPONSES FROM ALL MODELS")
+    print("="*80)
     for llm_client in context.llm_clients:
         try:
             response_text = llm_client.get_response(formatted_prompt)
@@ -161,16 +164,29 @@ Please analyze the provided documents and conversation history to answer the que
                 "response": response_text
             }
             responses.append(response_data)
+            print(f"\n--- {llm_client.get_model_name()} ---")
+            print(response_text)
+            print("-" * 40)
         except Exception as e:
             response_data = {
                 "model_name": llm_client.get_model_name(),
                 "response": f"Error getting response from {llm_client.get_model_name()}: {str(e)}"
             }
             responses.append(response_data)
+            print(f"\n--- {llm_client.get_model_name()} ---")
+            print(f"ERROR: {str(e)}")
+            print("-" * 40)
+    
+    print("\n" + "="*80)
     
     # Compute consensus from all responses
     if responses:
         consensus_result = compute_consensus(responses)
+        print("CONSENSUS RESULT")
+        print("="*80)
+        print(f"Selected response from: {consensus_result['model_scores'][0]['model'] if consensus_result['model_scores'] else 'N/A'}")
+        print(f"Model similarity scores: {consensus_result['model_scores']}")
+        print("="*80 + "\n")
         # Return only the consensus response to UI
         return consensus_result["consensus_response"]
     else:

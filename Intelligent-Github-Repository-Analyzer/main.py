@@ -9,8 +9,6 @@ from repo_reader import clone_git_repo, load_and_index_files
 from questions import QuestionContext, ask_question
 from utility import format_questions
 from llm_client import GroqLLMClient, BaseLLMClient
-from huggingface_llm_client import HuggingFaceLLMClient
-from gemini_llm_client import GeminiLLMClient
 from ui_styling import apply_modern_styling
 from cache_manager import (get_cache_path, is_repo_cached, save_repo_cache, 
                            load_repo_cache, clear_old_cache)
@@ -1403,11 +1401,11 @@ def process_repository_fresh(repo_url, repo_name):
 
             print("Repo cloned.....Indexing Files")
             
-            # Create LLM clients - Groq, Hugging Face, and Gemini
+            # Create LLM clients - 3 different Groq models for consensus
             llm_clients = [
-                GroqLLMClient(api_key=GROQ_API_KEY, model_name=model_name),
-                HuggingFaceLLMClient(),
-                GeminiLLMClient()
+                GroqLLMClient(api_key=GROQ_API_KEY, model_name="llama-3.3-70b-versatile"),
+                GroqLLMClient(api_key=GROQ_API_KEY, model_name="llama-3.1-8b-instant"),
+                GroqLLMClient(api_key=GROQ_API_KEY, model_name="qwen/qwen3-32b")
             ]
 
             question_context = QuestionContext(
@@ -1558,10 +1556,11 @@ def main():
             index, document, file_type_count, file_names = load_repo_cache(repo_url, CACHE_DIR)
             
             if index is not None:
-                # Create LLM clients for cached repo - Groq and Hugging Face
+                # Create LLM clients for cached repo - 3 different Groq models
                 llm_clients = [
-                    GroqLLMClient(api_key=GROQ_API_KEY, model_name=model_name),
-                    HuggingFaceLLMClient()
+                    GroqLLMClient(api_key=GROQ_API_KEY, model_name="llama-3.3-70b-versatile"),
+                    GroqLLMClient(api_key=GROQ_API_KEY, model_name="llama-3.1-8b-instant"),
+                    GroqLLMClient(api_key=GROQ_API_KEY, model_name="qwen/qwen3-32b")
                 ]
                 
                 # Create question context
@@ -1601,24 +1600,43 @@ def main():
 
         # Dynamic question input key to prevent state conflicts
         question_key = f"user_question_input_{st.session_state.conversation_count}"
-        user_question = st.text_input(
-            "Ask a question about the repository:",
-            key=question_key,
-            help="Type your question and press Enter or click Submit"
-        )
         
-        # Simple submit button
-        submit_clicked = st.button("Submit Question", type="primary")
+        # Use form to allow Enter key submission
+        with st.form(key=f"question_form_{st.session_state.conversation_count}", clear_on_submit=True):
+            user_question = st.text_input(
+                "Ask a question about the repository:",
+                key=question_key,
+                help="Type your question and press Enter to submit"
+            )
+            
+            # Submit button with better visibility - using primary variant for bright color
+            col1, col2, col3 = st.columns([2, 1, 2])
+            with col2:
+                submit_clicked = st.form_submit_button(
+                    "🚀 Submit",
+                    use_container_width=True,
+                    type="primary"
+                )
 
         # Initialize qa_history if it doesn't exist
         if 'qa_history' not in st.session_state:
             st.session_state.qa_history = []
+        
+        # Track which question is currently open
+        if 'expanded_question_idx' not in st.session_state:
+            st.session_state.expanded_question_idx = None
 
         # Display conversation history first (if exists)
         if st.session_state.qa_history:
             st.subheader("💬 Conversation History")
             for i, (q, a) in enumerate(st.session_state.qa_history):
-                with st.expander(f"Q{i+1}: {q[:80]}{'...' if len(q) > 80 else ''}", expanded=False):
+                # Only expand the latest (most recent) question
+                is_expanded = (i == len(st.session_state.qa_history) - 1)
+                
+                with st.expander(
+                    f"Q{i+1}: {q[:80]}{'...' if len(q) > 80 else ''}", 
+                    expanded=is_expanded
+                ):
                     st.write(f"**Question:** {q}")
                     st.write(f"**Answer:**")
                     display_enhanced_answer(a)

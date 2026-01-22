@@ -1,32 +1,27 @@
 #!/usr/bin/env python
-"""Test integration of HuggingFace and Groq LLM clients"""
+"""Test integration of Groq LLM client"""
 
 from llm_client import GroqLLMClient, BaseLLMClient
-from huggingface_llm_client import HuggingFaceLLMClient
 import os
 
 print("=" * 60)
-print("Testing LLM Client Integration")
+print("Testing Groq LLM Client")
 print("=" * 60)
 
 # Test imports
 print("\n✓ Imports successful")
 
-# Test HuggingFaceLLMClient inheritance
-hf_bases = HuggingFaceLLMClient.__bases__
-print(f"✓ HuggingFaceLLMClient inherits from: {hf_bases}")
-
-# Test method availability
-print(f"✓ get_response method exists: {hasattr(HuggingFaceLLMClient, 'get_response')}")
-print(f"✓ get_model_name method exists: {hasattr(HuggingFaceLLMClient, 'get_model_name')}")
-
-# Test BaseLLMClient is parent
-is_subclass = issubclass(HuggingFaceLLMClient, BaseLLMClient)
-print(f"✓ Is subclass of BaseLLMClient: {is_subclass}")
-
-# Test GroqLLMClient still works
+# Test GroqLLMClient inheritance
 groq_bases = GroqLLMClient.__bases__
 print(f"✓ GroqLLMClient inherits from: {groq_bases}")
+
+# Test method availability
+print(f"✓ get_response method exists: {hasattr(GroqLLMClient, 'get_response')}")
+print(f"✓ get_model_name method exists: {hasattr(GroqLLMClient, 'get_model_name')}")
+
+# Test BaseLLMClient is parent
+is_subclass = issubclass(GroqLLMClient, BaseLLMClient)
+print(f"✓ Is subclass of BaseLLMClient: {is_subclass}")
 
 print("\n" + "=" * 60)
 print("Integration Tests Passed!")

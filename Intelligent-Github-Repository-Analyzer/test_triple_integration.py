@@ -1,24 +1,18 @@
 #!/usr/bin/env python
-"""Test integration of all three LLM clients: Groq, HuggingFace, and Gemini"""
+"""Test integration of Groq LLM client"""
 
 import sys
 
 print("=" * 75)
-print("TESTING TRIPLE LLM CLIENT INTEGRATION")
+print("TESTING GROQ LLM CLIENT INTEGRATION")
 print("=" * 75)
 
-# Test 1: Import all clients
-print("\n[TEST 1] Importing All LLM Clients")
+# Test 1: Import client
+print("\n[TEST 1] Importing Groq LLM Client")
 print("-" * 75)
 try:
     from llm_client import BaseLLMClient, GroqLLMClient
     print("✓ Imported GroqLLMClient")
-    
-    from huggingface_llm_client import HuggingFaceLLMClient
-    print("✓ Imported HuggingFaceLLMClient")
-    
-    from gemini_llm_client import GeminiLLMClient
-    print("✓ Imported GeminiLLMClient")
     
     from questions import QuestionContext, ask_question
     print("✓ Imported QuestionContext and ask_question")
@@ -34,12 +28,6 @@ try:
     assert issubclass(GroqLLMClient, BaseLLMClient)
     print("✓ GroqLLMClient is subclass of BaseLLMClient")
     
-    assert issubclass(HuggingFaceLLMClient, BaseLLMClient)
-    print("✓ HuggingFaceLLMClient is subclass of BaseLLMClient")
-    
-    assert issubclass(GeminiLLMClient, BaseLLMClient)
-    print("✓ GeminiLLMClient is subclass of BaseLLMClient")
-    
 except AssertionError as e:
     print(f"✗ Inheritance verification failed: {e}")
     sys.exit(1)
@@ -51,27 +39,19 @@ try:
     groq = GroqLLMClient(api_key="test_groq")
     print(f"✓ GroqLLMClient: {groq.get_model_name()}")
     
-    hf = HuggingFaceLLMClient(api_token="test_hf")
-    print(f"✓ HuggingFaceLLMClient: {hf.get_model_name()}")
-    
-    gemini = GeminiLLMClient(api_key="test_gemini")
-    print(f"✓ GeminiLLMClient: {gemini.get_model_name()}")
-    
 except Exception as e:
     print(f"✗ Instantiation failed: {e}")
     sys.exit(1)
 
-# Test 4: Triple client list (main.py structure)
-print("\n[TEST 4] Triple LLM Clients List")
+# Test 4: LLM client list (main.py structure)
+print("\n[TEST 4] LLM Clients List")
 print("-" * 75)
 try:
     llm_clients = [
-        GroqLLMClient(api_key="test_groq"),
-        HuggingFaceLLMClient(api_token="test_hf"),
-        GeminiLLMClient(api_key="test_gemini")
+        GroqLLMClient(api_key="test_groq")
     ]
     
-    print(f"✓ Created llm_clients list with {len(llm_clients)} clients:")
+    print(f"✓ Created llm_clients list with {len(llm_clients)} client(s):")
     for idx, client in enumerate(llm_clients, 1):
         print(f"  [{idx}] {client.__class__.__name__}: {client.get_model_name()}")
         

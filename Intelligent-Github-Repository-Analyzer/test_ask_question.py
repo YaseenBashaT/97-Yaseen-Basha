@@ -1,13 +1,12 @@
 #!/usr/bin/env python
-"""Test ask_question function with both LLM clients"""
+"""Test ask_question function with Groq LLM client"""
 
 from llm_client import GroqLLMClient, BaseLLMClient
-from huggingface_llm_client import HuggingFaceLLMClient
 from questions import QuestionContext, ask_question
 import json
 
 print("=" * 60)
-print("Testing ask_question with Dual LLM Clients")
+print("Testing ask_question with Groq LLM Client")
 print("=" * 60)
 
 # Create mock data
@@ -17,13 +16,12 @@ mock_history = "User: What is this repo?\nAssistant: A Python project"
 mock_filenames = ["test.py", "main.py", "utils.py"]
 mock_file_types = {"py": 3}
 
-# Create LLM clients with dummy keys (won't make actual API calls in this test)
+# Create LLM client with dummy key (won't make actual API calls in this test)
 llm_clients = [
-    GroqLLMClient(api_key="test_groq_key"),
-    HuggingFaceLLMClient(api_token="test_hf_token")
+    GroqLLMClient(api_key="test_groq_key")
 ]
 
-print(f"\n✓ Created {len(llm_clients)} LLM clients:")
+print(f"\n✓ Created {len(llm_clients)} LLM client:")
 for client in llm_clients:
     print(f"  - {client.get_model_name()}")
 

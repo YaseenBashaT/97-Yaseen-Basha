@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-"""Final integration test - verify complete dual-LLM flow"""
+"""Final integration test - verify Groq LLM flow"""
 
 import sys
 import os
 
 print("=" * 70)
-print("FINAL INTEGRATION TEST: Dual LLM Clients")
+print("FINAL INTEGRATION TEST: Groq LLM Client")
 print("=" * 70)
 
 # Test 1: Import chain
@@ -14,9 +14,6 @@ print("-" * 70)
 try:
     from llm_client import BaseLLMClient, GroqLLMClient
     print("✓ Imported BaseLLMClient and GroqLLMClient from llm_client.py")
-    
-    from huggingface_llm_client import HuggingFaceLLMClient
-    print("✓ Imported HuggingFaceLLMClient from huggingface_llm_client.py")
     
     from questions import QuestionContext, ask_question
     print("✓ Imported QuestionContext and ask_question from questions.py")
@@ -32,9 +29,6 @@ try:
     groq = GroqLLMClient(api_key="test_key")
     print(f"✓ GroqLLMClient created: {groq.get_model_name()}")
     
-    hf = HuggingFaceLLMClient(api_token="test_token")
-    print(f"✓ HuggingFaceLLMClient created: {hf.get_model_name()}")
-    
 except Exception as e:
     print(f"✗ Instantiation failed: {e}")
     sys.exit(1)
@@ -44,8 +38,7 @@ print("\n[TEST 3] LLM Clients List Creation")
 print("-" * 70)
 try:
     llm_clients = [
-        GroqLLMClient(api_key="test_groq"),
-        HuggingFaceLLMClient(api_token="test_hf")
+        GroqLLMClient(api_key="test_groq")
     ]
     print(f"✓ Created llm_clients list with {len(llm_clients)} clients")
     for idx, client in enumerate(llm_clients, 1):
@@ -86,17 +79,10 @@ try:
     assert issubclass(GroqLLMClient, BaseLLMClient), "GroqLLMClient not subclass of BaseLLMClient"
     print("✓ GroqLLMClient is subclass of BaseLLMClient")
     
-    assert issubclass(HuggingFaceLLMClient, BaseLLMClient), "HuggingFaceLLMClient not subclass of BaseLLMClient"
-    print("✓ HuggingFaceLLMClient is subclass of BaseLLMClient")
-    
     # Verify methods exist
     assert hasattr(groq, 'get_response'), "GroqLLMClient missing get_response"
     assert hasattr(groq, 'get_model_name'), "GroqLLMClient missing get_model_name"
     print("✓ GroqLLMClient has required methods")
-    
-    assert hasattr(hf, 'get_response'), "HuggingFaceLLMClient missing get_response"
-    assert hasattr(hf, 'get_model_name'), "HuggingFaceLLMClient missing get_model_name"
-    print("✓ HuggingFaceLLMClient has required methods")
     
 except AssertionError as e:
     print(f"✗ Contract verification failed: {e}")
@@ -109,15 +95,11 @@ try:
     with open("main.py", "r", encoding="utf-8") as f:
         main_content = f.read()
     
-    assert "from huggingface_llm_client import HuggingFaceLLMClient" in main_content
-    print("✓ main.py imports HuggingFaceLLMClient")
+    assert "from llm_client import GroqLLMClient" in main_content
+    print("✓ main.py imports GroqLLMClient")
     
-    assert "HuggingFaceLLMClient()" in main_content
-    print("✓ main.py instantiates HuggingFaceLLMClient")
-    
-    # Count occurrences
-    count = main_content.count("HuggingFaceLLMClient()")
-    print(f"✓ HuggingFaceLLMClient instantiated {count} times (both paths)")
+    assert "GroqLLMClient(" in main_content
+    print("✓ main.py instantiates GroqLLMClient")
     
 except FileNotFoundError:
     print("✗ main.py not found")

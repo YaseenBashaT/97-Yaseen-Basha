@@ -33,11 +33,28 @@ def get_chroma_client():
     return _chroma_client
 
 def clone_git_repo(url, path):
+    """Clone a git repository with URL validation and auto-correction."""
     try:
-        subprocess.run(['git','clone',url,path],check=True)
+        # Ensure URL has proper protocol
+        if url.startswith('github.com/') or (not url.startswith('http://') and not url.startswith('https://') and not url.startswith('git@')):
+            url = f'https://{url}'
+        
+        # Ensure URL ends with .git for consistency
+        if not url.endswith('.git'):
+            url = f'{url}.git'
+        
+        subprocess.run(['git', 'clone', url, path], check=True, capture_output=True)
         return True
     except subprocess.CalledProcessError as ex:
         print(f"failed to clone repo: {ex}")
+        # Try without .git suffix if it failed
+        if url.endswith('.git'):
+            try:
+                url_without_git = url[:-4]
+                subprocess.run(['git', 'clone', url_without_git, path], check=True, capture_output=True)
+                return True
+            except subprocess.CalledProcessError:
+                return False
         return False
     
 def load_and_index_files(repo_path):
@@ -148,7 +165,9 @@ def load_and_index_files(repo_path):
     split_documents = []
     for file_id, original_doc in documents_dict.items():
         split_docs = text_splitter.split_documents([original_doc])
-        for split_doc in split_docs:
+        for i, split_doc in enumerate(split_docs):
+            # Create unique chunk_id for each split document
+            split_doc.metadata['chunk_id'] = f"{original_doc.metadata['file_id']}_chunk_{i}"
             split_doc.metadata['file_id'] = original_doc.metadata['file_id']
             split_doc.metadata['source'] = original_doc.metadata['source']
 
@@ -178,10 +197,10 @@ def load_and_index_files(repo_path):
         chroma_collection = client.get_or_create_collection(name=collection_name, metadata={"source": "local"})
 
         chroma_collection.add(
-            ids=[doc.metadata['file_id'] for doc in split_documents],
+            ids=[doc.metadata['chunk_id'] for doc in split_documents],
             documents=[doc.page_content for doc in split_documents],
             embeddings=embeddings.tolist(),
-            metadatas=[{"source": doc.metadata.get("source", ""), "file_id": doc.metadata.get("file_id", "")}] * len(split_documents)
+            metadatas=[{"source": doc.metadata.get("source", ""), "file_id": doc.metadata.get("file_id", ""), "chunk_id": doc.metadata.get("chunk_id", "")} for doc in split_documents]
         )
 
     return {
